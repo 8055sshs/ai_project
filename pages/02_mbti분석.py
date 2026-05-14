@@ -25,176 +25,203 @@ df = load_data()
 # -----------------------------------
 # 제목
 # -----------------------------------
-st.title("🌍 MBTI별 국가 비율 분석")
-st.markdown("MBTI를 선택하면 해당 유형 비율이 높은 국가를 확인할 수 있어요.")
-
-# -----------------------------------
-# MBTI 선택
-# -----------------------------------
-mbti_list = [col for col in df.columns if col != "Country"]
-
-selected_mbti = st.selectbox(
-    "MBTI 선택",
-    sorted(mbti_list)
+st.title("🌍 MBTI & 국가 분석 대시보드")
+st.markdown(
+    """
+    ✔ 국가 선택 → 해당 국가의 MBTI 비율 확인  
+    ✔ MBTI 선택 → 해당 유형 비율이 높은 국가 TOP10 확인
+    """
 )
 
 # -----------------------------------
-# 상위 국가 개수 선택
+# 탭 생성
 # -----------------------------------
-top_n = st.slider(
-    "상위 국가 개수",
-    min_value=5,
-    max_value=10,
-    value=5
-)
+tab1, tab2 = st.tabs([
+    "🌎 국가별 MBTI 보기",
+    "🧠 MBTI별 국가 보기"
+])
 
-# -----------------------------------
-# 데이터 가공
-# -----------------------------------
-chart_df = df[["Country", selected_mbti]].copy()
+# ==================================================
+# TAB 1
+# 국가 선택 -> MBTI 비율
+# ==================================================
+with tab1:
 
-chart_df.columns = ["Country", "Ratio"]
+    st.subheader("🌎 국가별 MBTI 비율")
 
-# 높은 순 정렬
-chart_df = chart_df.sort_values(
-    by="Ratio",
-    ascending=False
-)
+    countries = sorted(df["Country"].unique())
 
-# 상위 N개 선택
-chart_df = chart_df.head(top_n)
+    selected_country = st.selectbox(
+        "국가 선택",
+        countries
+    )
 
-# -----------------------------------
-# 색상 설정
-# 1등 = 빨간색
-# 나머지 = 파란색 그라데이션
-# -----------------------------------
-blue_gradient = [
-    "#0B3D91",
-    "#1456C3",
-    "#1E6DE0",
-    "#3B82F6",
-    "#60A5FA",
-    "#93C5FD",
-    "#BFDBFE",
-    "#DBEAFE"
-]
+    # 데이터 추출
+    country_df = df[df["Country"] == selected_country]
 
-colors = []
+    mbti_cols = [
+        col for col in df.columns
+        if col != "Country"
+    ]
 
-for i in range(len(chart_df)):
-    if i == 0:
-        colors.append("#FF3B30")
-    else:
-        colors.append(
-            blue_gradient[(i - 1) % len(blue_gradient)]
-        )
+    values = country_df[mbti_cols].iloc[0]
 
-# -----------------------------------
-# Plotly 그래프 생성
-# -----------------------------------
-fig = go.Figure()
+    chart_df = pd.DataFrame({
+        "MBTI": mbti_cols,
+        "Ratio": values.values
+    })
 
-fig.add_trace(
-    go.Bar(
-        y=chart_df["Country"],
-        x=chart_df["Ratio"],
-        orientation="h",
+    # 정렬
+    chart_df = chart_df.sort_values(
+        by="Ratio",
+        ascending=False
+    ).reset_index(drop=True)
 
-        marker=dict(
-            color=colors,
-            line=dict(
-                color="white",
-                width=1
+    # 색상
+    blue_gradient = [
+        "#0B3D91",
+        "#1456C3",
+        "#1E6DE0",
+        "#3B82F6",
+        "#60A5FA",
+        "#93C5FD",
+        "#BFDBFE",
+        "#DBEAFE"
+    ]
+
+    colors = []
+
+    for i in range(len(chart_df)):
+        if i == 0:
+            colors.append("#FF3B30")
+        else:
+            colors.append(
+                blue_gradient[(i - 1) % len(blue_gradient)]
             )
+
+    # 그래프
+    fig1 = go.Figure()
+
+    fig1.add_trace(
+        go.Bar(
+            x=chart_df["MBTI"],
+            y=chart_df["Ratio"],
+
+            marker=dict(
+                color=colors
+            ),
+
+            text=chart_df["Ratio"].round(3),
+            textposition="outside",
+
+            hovertemplate=
+            "<b>%{x}</b><br>" +
+            "비율: %{y:.3f}<extra></extra>"
+        )
+    )
+
+    fig1.update_layout(
+        template="plotly_white",
+        height=600,
+
+        title=f"{selected_country} MBTI 비율",
+
+        xaxis_title="MBTI",
+        yaxis_title="비율",
+
+        showlegend=False
+    )
+
+    st.plotly_chart(
+        fig1,
+        use_container_width=True
+    )
+
+# ==================================================
+# TAB 2
+# MBTI 선택 -> 국가 TOP10
+# ==================================================
+with tab2:
+
+    st.subheader("🧠 MBTI별 국가 TOP10")
+
+    mbti_list = [
+        col for col in df.columns
+        if col != "Country"
+    ]
+
+    selected_mbti = st.selectbox(
+        "MBTI 선택",
+        sorted(mbti_list)
+    )
+
+    # 데이터 가공
+    mbti_df = df[[
+        "Country",
+        selected_mbti
+    ]].copy()
+
+    mbti_df.columns = [
+        "Country",
+        "Ratio"
+    ]
+
+    mbti_df = mbti_df.sort_values(
+        by="Ratio",
+        ascending=False
+    ).head(10)
+
+    # 색상
+    colors2 = []
+
+    for i in range(len(mbti_df)):
+        if i == 0:
+            colors2.append("#FF3B30")
+        else:
+            colors2.append(
+                blue_gradient[(i - 1) % len(blue_gradient)]
+            )
+
+    # 그래프
+    fig2 = go.Figure()
+
+    fig2.add_trace(
+        go.Bar(
+            y=mbti_df["Country"],
+            x=mbti_df["Ratio"],
+
+            orientation="h",
+
+            marker=dict(
+                color=colors2
+            ),
+
+            text=mbti_df["Ratio"].round(3),
+            textposition="outside",
+
+            hovertemplate=
+            "<b>%{y}</b><br>" +
+            "비율: %{x:.3f}<extra></extra>"
+        )
+    )
+
+    fig2.update_layout(
+        template="plotly_white",
+        height=700,
+
+        title=f"{selected_mbti} 비율 TOP10 국가",
+
+        xaxis_title="비율",
+        yaxis_title="국가",
+
+        yaxis=dict(
+            autorange="reversed"
         ),
 
-        text=chart_df["Ratio"].round(3),
-        textposition="outside",
-
-        hovertemplate=
-        "<b>%{y}</b><br>" +
-        "비율: %{x:.3f}<extra></extra>"
+        showlegend=False
     )
-)
 
-# -----------------------------------
-# 그래프 스타일
-# -----------------------------------
-fig.update_layout(
-    title=f"{selected_mbti} 비율 TOP {top_n} 국가",
-    template="plotly_white",
-
-    height=650,
-
-    font=dict(
-        size=16
-    ),
-
-    title_font=dict(
-        size=28
-    ),
-
-    xaxis=dict(
-        title="비율",
-        showgrid=True
-    ),
-
-    yaxis=dict(
-        title="국가",
-        autorange="reversed"
-    ),
-
-    margin=dict(
-        l=40,
-        r=40,
-        t=80,
-        b=40
-    ),
-
-    showlegend=False
-)
-
-# -----------------------------------
-# 그래프 출력
-# -----------------------------------
-st.plotly_chart(
-    fig,
-    use_container_width=True
-)
-
-# -----------------------------------
-# TOP 국가 카드
-# -----------------------------------
-st.subheader(f"🏆 {selected_mbti} TOP 국가")
-
-cols = st.columns(top_n)
-
-for idx, (_, row) in enumerate(chart_df.iterrows()):
-    with cols[idx]:
-        if idx == 0:
-            st.success(
-                f"🥇 {row['Country']}\n\n{row['Ratio']:.3f}"
-            )
-        elif idx == 1:
-            st.info(
-                f"🥈 {row['Country']}\n\n{row['Ratio']:.3f}"
-            )
-        elif idx == 2:
-            st.warning(
-                f"🥉 {row['Country']}\n\n{row['Ratio']:.3f}"
-            )
-        else:
-            st.metric(
-                row["Country"],
-                f"{row['Ratio']:.3f}"
-            )
-
-# -----------------------------------
-# 데이터 테이블
-# -----------------------------------
-with st.expander("📋 데이터 보기"):
-    st.dataframe(
-        chart_df,
+    st.plotly_chart(
+        fig2,
         use_container_width=True
     )
